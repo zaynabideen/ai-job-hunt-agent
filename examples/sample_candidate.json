@@ -1,0 +1,34 @@
+{
+  "name": "Jordan Example",
+  "target_roles": ["Data Analyst", "BI Analyst"],
+  "location": "Manchester, UK",
+  "work_authorization": "UK citizen, no sponsorship needed",
+  "minimum_salary": 32000,
+  "preferred_salary": 38000,
+  "remote_preference": "hybrid",
+  "maximum_commute": "45 minutes, hard limit",
+  "skills": [
+    { "skill": "SQL", "must_have": true },
+    { "skill": "Python", "must_have": false },
+    { "skill": "Tableau", "must_have": false },
+    { "skill": "Excel", "must_have": true }
+  ],
+  "experience": [
+    {
+      "title": "Junior Data Analyst",
+      "company": "Sample Ltd",
+      "dates": "2023-2026",
+      "achievements": [
+        "Built weekly reporting dashboards used by 3 department heads",
+        "Reduced manual reporting time by 40% by automating a recurring SQL pipeline"
+      ]
+    }
+  ],
+  "education": [
+    { "degree": "BSc Economics", "institution": "Example University", "dates": "2019-2023" }
+  ],
+  "certifications": [
+    { "name": "Google Data Analytics Certificate", "mandatory": false }
+  ],
+  "master_cv_reference": "https://example.com/drive/master-cv"
+}
