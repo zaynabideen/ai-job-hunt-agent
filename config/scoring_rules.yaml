@@ -1,0 +1,109 @@
+# Scoring rules for the matching prompt.
+# This file is the deterministic backbone that the LLM-run matching prompt
+# should follow. It exists so the same job scored twice (by the same or a
+# different LLM) produces a consistent, explainable result, and so that a
+# strong weighted average can never silently override a disqualifying issue.
+#
+# Status: PLANNED reference config. Today, `prompts/matching_prompt.md` is
+# still run manually through an LLM that reads this file's values by hand
+# (copy them into the prompt, or paste this file alongside the job listing).
+# There is no code in this repo that parses or enforces this YAML
+# automatically yet - see docs/AUDIT.md.
+
+version: 1
+
+weights:
+  skills: 0.25
+  experience: 0.20
+  education: 0.10
+  responsibilities: 0.20
+  seniority: 0.10
+  location: 0.15
+  # weights must sum to 1.0
+
+sub_score_definitions:
+  skills:
+    exact_match: 1.0      # candidate has the exact required skill
+    partial_match: 0.5    # candidate has an adjacent/transferable skill
+    missing: 0.0          # candidate has no evidence of this skill
+  experience:
+    meets_or_exceeds: 1.0
+    close_below: 0.6      # within ~1 year of the stated requirement
+    well_below: 0.2
+  education:
+    meets: 1.0
+    unspecified_in_listing: 1.0   # do not penalize if listing doesn't require one
+    below_requirement: 0.3
+  responsibilities:
+    strong_overlap: 1.0
+    partial_overlap: 0.6
+    little_overlap: 0.2
+  seniority:
+    matches: 1.0
+    one_level_off: 0.5
+    two_or_more_levels_off: 0.0
+  location:
+    exact_or_remote_match: 1.0
+    acceptable_commute_or_hybrid: 0.7
+    unacceptable: 0.0
+
+# Hard gates run BEFORE the weighted score is trusted. If any gate fails,
+# the recommendation is forced regardless of the overall weighted score.
+# This directly fixes the gap identified in docs/AUDIT.md: a high weighted
+# score could previously hide a disqualifying issue.
+hard_gates:
+  - id: must_have_skill_missing
+    condition: "any mandatory skill (marked must-have in the candidate profile) is absent from the listing match"
+    effect: "flag MUST_HAVE_FAILURE; recommendation capped at CONSIDER even if overall_score >= 75"
+
+  - id: work_authorization_incompatible
+    condition: "listing requires a work authorization/visa status the candidate does not hold, and does not offer sponsorship"
+    effect: "recommendation = SKIP, regardless of overall_score"
+
+  - id: salary_below_minimum
+    condition: "listing's stated salary (if specified) is more than 15% below the candidate's stated minimum acceptable salary"
+    effect: "recommendation = LOW_PRIORITY, regardless of overall_score"
+
+  - id: location_unacceptable
+    condition: "listing requires on-site attendance beyond the candidate's maximum commute, with no remote/hybrid option"
+    effect: "recommendation = SKIP, regardless of overall_score"
+
+  - id: mandatory_certification_missing
+    condition: "listing requires a certification/license marked mandatory (not preferred) that the candidate does not hold"
+    effect: "flag MUST_HAVE_FAILURE; recommendation capped at CONSIDER even if overall_score >= 75"
+
+priority_tiers:
+  apply_now: [85, 100]
+  high_priority: [75, 84]
+  consider: [65, 74]
+  low_priority: [50, 64]
+  skip: [0, 49]
+
+non_weighted_flags:
+  salary_career_value:
+    scale: [0, 5]
+    description: "Is this worth pursuing given comp and career trajectory? Not part of the weighted score - used to break ties."
+  application_feasibility:
+    scale: [0, 5]
+    description: "Is this a real, applyable listing? See prompts/job_validation_prompt.md for the dedicated risk assessment."
+
+output_schema:
+  description: "Every scored job should produce this structure, whether written by hand or by an LLM following matching_prompt.md."
+  example: |
+    {
+      "job_id": "string",
+      "overall_score": 82,
+      "skills_score": 85,
+      "experience_score": 80,
+      "education_score": 100,
+      "responsibility_score": 75,
+      "seniority_score": 80,
+      "location_score": 90,
+      "salary_fit": 4,
+      "career_value": 5,
+      "missing_skills": [],
+      "must_have_failures": [],
+      "hard_gate_triggered": null,
+      "recommendation": "APPLY_NOW",
+      "reason": "short explanation citing specific evidence"
+    }
