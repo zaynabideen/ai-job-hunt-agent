@@ -1,0 +1,17 @@
+{
+  "job_id": "a1b2c3d4",
+  "overall_score": 82,
+  "skills_score": 85,
+  "experience_score": 80,
+  "education_score": 100,
+  "responsibility_score": 75,
+  "seniority_score": 80,
+  "location_score": 90,
+  "salary_fit": 4,
+  "career_value": 5,
+  "missing_skills": ["Snowflake"],
+  "must_have_failures": [],
+  "hard_gate_triggered": null,
+  "recommendation": "HIGH_PRIORITY",
+  "reason": "Strong overlap on core SQL/Python/Tableau requirements and 3 years' relevant analytics experience; missing hands-on Snowflake experience but not listed as mandatory."
+}
