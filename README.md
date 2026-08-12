@@ -1,85 +1,142 @@
 # AI Job Hunt Agent
 
-A personal AI-powered job hunting system built on **Google Sheets + LLM prompts (+ optional n8n automation)**. It finds and scores job vacancies against your real CV, ranks them with a transparent 0-100 match rubric, drafts tailored CVs/cover letters for the strong matches, and tracks every application through to offer/rejection - all in a single spreadsheet you already know how to use.
+An explainable AI-powered job hunting framework: a Google Sheets tracker, a
+set of carefully-written LLM prompts, and documentation designed to
+eventually plug into an n8n-based automation - built with a human-approval
+gate that never goes away.
 
-No SaaS subscription, no black-box "AI resume matcher." Everything - the scoring logic, the prompts, the tracker - is yours to read, edit, and run.
-
-## Why this exists
-
-Most job-search tools either spam-apply to everything (low quality, high risk of scams) or give you a black-box match score with no explanation. This project takes the opposite approach:
-
-- **Explainable scoring** - every match score breaks down into 6 sub-scores (skills, experience, education, responsibilities, seniority, location) plus a feasibility rating, so you know why a job scored 82 and not 95.
-- **Truthful by default** - the system is instructed to never fabricate experience, salary, or job status. Anything unverified is labeled "Not specified" / "Unverified" instead of guessed.
-- **Human approval gate** - nothing is ever auto-applied or auto-emailed. The agent prepares; you approve and send.
-- **One spreadsheet, not five apps** - the whole tracker lives in Google Sheets so it's inspectable, exportable, and shareable.
+**Current status: manual, prompt-driven framework.** Nothing in this repo
+runs automatically today. You run the prompts yourself through an LLM
+(Claude, ChatGPT, or any capable model) and update the spreadsheet by hand.
+The n8n automation described below is a documented design, not a working
+integration - see [docs/AUDIT.md](docs/AUDIT.md) for a full breakdown of
+what's implemented vs. planned.
 
 ## What it does
 
-1. **Search** - pulls job listings from job boards (Indeed, Glassdoor, CV-Library, Reed, etc.) for the roles you specify.
-2. **Score** - runs each listing against your CV using the Match Score rubric (see prompts/matching_prompt.md) and assigns a 0-100 score plus a priority tier (Apply Now to Skip).
-3. **Draft** - for anything scoring 75+, generates a tailored CV and cover letter (never submitted automatically).
-4. **Track** - logs everything into the Job Database sheet: status, application stage, follow-ups, closing dates.
-5. **Report** - the Dashboard sheet gives you live KPIs and charts (priority breakdown, match score per job) so you can see your pipeline at a glance.
+- **Validates** job listings for quality/risk signals before you invest time
+  in them ([prompts/job_validation_prompt.md](prompts/job_validation_prompt.md))
+- **Scores** each listing against your CV on a transparent 6-factor rubric,
+  with hard requirement gates so a good weighted score can never hide a
+  disqualifying issue like missing work authorization
+  ([prompts/matching_prompt.md](prompts/matching_prompt.md),
+  [config/scoring_rules.yaml](config/scoring_rules.yaml))
+- **Drafts** a tailored CV and cover letter for anything that clears the bar
+  - never fabricating experience, and never sent automatically
+  ([prompts/cv_tailoring_prompt.md](prompts/cv_tailoring_prompt.md),
+  [prompts/cover_letter_prompt.md](prompts/cover_letter_prompt.md))
+- **Tracks** the full pipeline from discovery to offer/rejection in a
+  spreadsheet with a live Dashboard
+  ([templates/Job_Hunt_Template.xlsx](templates/Job_Hunt_Template.xlsx))
 
-## Repo structure
+## Current capabilities vs. limitations
+
+| | |
+|---|---|
+| **Works today** | The scoring rubric, validation prompt, CV/cover-letter prompts, and spreadsheet template - all run manually through an LLM of your choice. |
+| **Not implemented** | Job discovery/scraping, deduplication, and follow-up reminders are documented but not automated. There is no code in this repository. |
+| **Planned** | An n8n workflow to automate discovery, validation, and scoring - with the human-approval gate kept fully intact. See [workflows/README.md](workflows/README.md). |
+
+See [docs/AUDIT.md](docs/AUDIT.md) for the full IMPLEMENTED / PARTIAL /
+PLANNED breakdown of every claimed capability.
+
+## Architecture
+
+```
+Job Sources -> Validate -> Deduplicate -> Score -> Qualify -> Draft CV/Cover Letter
+   -> Human Review -> You Apply -> Track -> Follow-up
+```
+
+Full system design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+Data shapes and deduplication strategy: [docs/DATA_MODEL.md](docs/DATA_MODEL.md)
+Step-by-step pipeline and status lifecycle: [docs/WORKFLOW.md](docs/WORKFLOW.md)
+
+## Repository structure
 
 ```
 ai-job-hunt-agent/
-├── README.md                        <- you are here
-├── LICENSE                          <- MIT
+├── README.md
+├── LICENSE                          - MIT
+├── .gitignore
+├── .env.example                     - only relevant if you build the n8n automation
 ├── docs/
-│   └── ARCHITECTURE.md              <- full system design: agent roles, data flow, security & cost notes
+│   ├── AUDIT.md                     - what's implemented vs. planned, and why
+│   ├── ARCHITECTURE.md              - system design, agent roles, security & cost notes
+│   ├── DATA_MODEL.md                - candidate/job record shapes, deduplication strategy
+│   ├── WORKFLOW.md                  - human-approval pipeline, status lifecycle
+│   ├── SETUP.md                     - how to actually use this, step by step
+│   └── CHANGELOG.md
 ├── prompts/
-│   ├── matching_prompt.md           <- the 0-100 scoring rubric prompt
-│   ├── cv_tailoring_prompt.md       <- generates a tailored CV from your master CV + job listing
-│   └── cover_letter_prompt.md       <- generates a tailored cover letter
-└── templates/
-    └── Job_Hunt_Template.xlsx       <- ready-to-use spreadsheet: Dashboard, Job Database, charts, dropdowns, conditional formatting - pre-filled with example rows so you can see how it works before you plug in your own data
+│   ├── job_validation_prompt.md     - listing quality/risk assessment
+│   ├── matching_prompt.md           - 0-100 scoring rubric
+│   ├── cv_tailoring_prompt.md       - tailored CV generation
+│   └── cover_letter_prompt.md       - tailored cover letter generation
+├── templates/
+│   ├── Job_Hunt_Template.xlsx       - Dashboard + Job Database + charts, pre-filled with examples
+│   └── candidate_profile.md         - fillable profile you paste into the prompts
+├── examples/
+│   ├── sample_job.json
+│   ├── sample_match.json
+│   └── sample_candidate.json
+├── config/
+│   └── scoring_rules.yaml           - weights, hard gates, output schema
+└── workflows/
+    └── README.md                    - planned n8n architecture (not yet built)
 ```
 
-## Quick start
+## Setup
 
-1. Download templates/Job_Hunt_Template.xlsx and upload it to Google Drive (right-click -> Open with -> Google Sheets to convert it to a live, editable Sheet).
-2. Replace the example rows in the Job Database sheet with your own - either by hand, or by feeding job listings + your CV through the prompts in prompts/ using Claude (or any capable LLM).
-3. Read docs/ARCHITECTURE.md if you want to wire this up to automatically search job boards on a schedule (the doc includes an n8n-based automation design - optional, the spreadsheet + prompts work perfectly well run manually too).
-4. Keep the CV Version / Cover Letter Version columns hyperlinked to your actual generated documents (Google Docs or Drive links) so clicking a row takes you straight to the tailored application.
+See [docs/SETUP.md](docs/SETUP.md) for the full walkthrough. Short version:
 
-## The scoring rubric, in short
+1. Download `templates/Job_Hunt_Template.xlsx`, open with Google Sheets.
+2. Fill in `templates/candidate_profile.md` with your real details.
+3. For each job: run it through `job_validation_prompt.md`, then
+   `matching_prompt.md`. If it clears the bar, run `cv_tailoring_prompt.md`
+   and `cover_letter_prompt.md`.
+4. Record everything in the Job Database sheet. Review the drafts yourself,
+   then apply through the employer's actual process - nothing here submits
+   anything for you.
 
-| Component | Weight | What it checks |
-|---|---|---|
-| Skills Match | 25% | Required tools/skills you actually have |
-| Experience Match | 20% | Years + type of experience vs. what's asked |
-| Education Match | 10% | Degree/certification requirements |
-| Responsibilities Match | 20% | Day-to-day tasks overlap with your background |
-| Seniority Match | 10% | Job level vs. your level |
-| Location Match | 15% | Remote/hybrid/on-site + commute fit |
+## Matching methodology
 
-Plus two non-weighted flags: Salary/Career Value (/5) and Application Feasibility (/5) - used to break ties and flag jobs that score well but aren't worth your time (e.g. unpaid, scam-shaped, or wildly underpaid listings).
+Six weighted sub-scores (skills 25%, experience 20%, education 10%,
+responsibilities 20%, seniority 10%, location 15%), plus two 0-5 flags
+(salary/career value, application feasibility) used to break ties - not to
+override hard gates. See [config/scoring_rules.yaml](config/scoring_rules.yaml)
+for the full rule set, including the hard gates that force a SKIP or
+LOW_PRIORITY recommendation regardless of the weighted score (missing work
+authorization, mandatory certification gaps, unacceptable commute, salary
+far below your floor).
 
-Priority tiers:
-- Apply Now - 85-100
-- High Priority - 75-84
-- Consider - 65-74
-- Low Priority - 50-64
-- Skip - below 50
+## Human approval
 
-## Ground rules the agent follows
+Nothing in this repository ever submits an application, sends an email, or
+takes any irreversible action. Every prompt stops at "here's a draft." You
+read it, edit it if needed, and apply yourself. This is a design constraint,
+not a feature that might get removed later - see
+[docs/WORKFLOW.md](docs/WORKFLOW.md).
 
-- Never fabricates salary, experience, or application status - uses "Not specified" / "Unverified" instead.
-- Never auto-submits an application or sends an email. Every CV/cover letter is a draft for you to review.
-- Flags likely low-quality or scam-shaped listings (recruiter template-farming, "placement programmes" with unclear cost models, etc.) instead of silently scoring them.
+## Future automation
 
-## Roadmap ideas
+The `workflows/` and `.env.example` files describe (but do not implement) an
+n8n-based pipeline that would automate discovery, deduplication, validation,
+and scoring - while keeping human review and application submission fully
+manual. If you build this automation, a PR with the resulting n8n workflow
+export is welcome.
+
+## Roadmap
 
 - [ ] n8n workflow export for scheduled job-board polling
-- [ ] Skill-gap tracker (which recurring "missing skills" show up most across your rejected/low-scoring jobs)
+- [ ] Automated deduplication against the canonical job ID
+- [ ] Skill-gap tracker (recurring "missing skills" across low-scoring jobs)
 - [ ] Multi-CV support (different master CVs for different role types)
 
 ## Contributing
 
-Issues and PRs welcome - especially around adding more job-board search patterns, improving the scoring rubric, or adapting the sheet for non-UK job markets.
+Issues and PRs welcome - especially around adding job-board search patterns,
+improving the scoring rubric, building the n8n workflow described in
+`workflows/README.md`, or adapting the sheet for non-UK job markets.
 
 ## License
 
-MIT - see LICENSE. Use it, fork it, adapt it for your own job search.
+MIT - see [LICENSE](LICENSE). Use it, fork it, adapt it for your own job search.
