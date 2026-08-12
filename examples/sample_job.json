@@ -1,0 +1,16 @@
+{
+  "job_id": "a1b2c3d4",
+  "title": "Data Analyst",
+  "company": "Northwind Data",
+  "location": "Manchester, UK",
+  "work_model": "hybrid",
+  "salary": "Not specified",
+  "employment_type": "full-time",
+  "url": "https://example.com/jobs/data-analyst-northwind",
+  "source": "Indeed",
+  "date_posted": "2026-07-28",
+  "closing_date": null,
+  "date_found": "2026-07-29",
+  "last_checked": "2026-07-29",
+  "status": "DISCOVERED"
+}
